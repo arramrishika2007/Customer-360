@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer 360</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+:root{--bg:#eef1f5;--panel:#fff;--ink:#16212c;--mute:#667585;--line:#e1e6ec;--accent:#0f6e6e;--soft:#e3f2f1;--ok:#1d7a4b;--bad:#b23b3b;--warn:#8a6414;--side:#14202b;--shadow:0 1px 2px rgba(20,32,43,.07)}
+@media(prefers-color-scheme:dark){:root{--bg:#0f151b;--panel:#182029;--ink:#e7ecf1;--mute:#93a1b0;--line:#26313c;--accent:#4fb8b0;--soft:#17323a;--ok:#5cc08a;--bad:#e58585;--warn:#d9b45f;--side:#0b1015}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "Segoe UI",system-ui,sans-serif}
+.app{display:grid;grid-template-columns:210px 1fr;min-height:100vh}
+aside{background:var(--side);padding:20px 12px;position:sticky;top:0;height:100vh}
+aside h1{color:#fff;font-size:17px;margin:0 8px 22px;font-weight:650}
+aside button{display:block;width:100%;text-align:left;background:none;border:0;color:#a9b7c4;font:inherit;padding:9px 12px;border-radius:6px;cursor:pointer;margin-bottom:2px}
+aside button:hover{background:rgba(255,255,255,.07)}
+aside button.on{background:rgba(255,255,255,.13);color:#fff;font-weight:600}
+main{padding:24px 28px;min-width:0}
+@media(max-width:820px){.app{grid-template-columns:1fr}aside{position:static;height:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:10px}aside h1{margin:0 10px 0 4px}aside button{width:auto}main{padding:16px}}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button.btn{font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:6px;cursor:pointer}
+button.btn:hover:not(:disabled){border-color:var(--mute)}
+button.btn.ok{background:var(--accent);border-color:var(--accent);color:#fff}
+button.btn.bad{color:var(--bad);border-color:var(--bad)}
+button.btn:disabled{opacity:.45;cursor:default}
+.grid{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:20px;align-items:start}
+@media(max-width:980px){.grid{grid-template-columns:1fr}}
+.panel,.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px;box-shadow:var(--shadow)}
+.panel h2,.card h2{font-size:15px;margin:0 0 12px;font-weight:650}
+.scroll{overflow:auto}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--mute);font-weight:600;font-size:12px;position:sticky;top:0;background:var(--panel)}
+tbody tr:last-child td{border-bottom:0}
+tr.click{cursor:pointer}tr.click:hover{background:var(--bg)}tr.sel{background:var(--soft)}
+.mute{color:var(--mute)}.num{text-align:right;font-variant-numeric:tabular-nums}
+.pos{color:var(--ok)}.neg{color:var(--bad)}
+.tag{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:1px 10px;font-size:12px;margin:0 4px 2px 0;background:var(--bg)}
+.tag.ok{color:var(--ok);border-color:var(--ok);background:transparent}.tag.warn{color:var(--warn);border-color:var(--warn);background:transparent}.tag.bad{color:var(--bad);border-color:var(--bad);background:transparent}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:700px){.pair{grid-template-columns:1fr}}
+.rec{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:var(--bg)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.head{display:flex;gap:16px;align-items:center}
+.avatar{width:52px;height:52px;border-radius:50%;background:var(--soft);color:var(--accent);display:grid;place-items:center;font-weight:700;font-size:18px}
+.title{font-size:20px;font-weight:650;line-height:1.2}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;box-shadow:var(--shadow)}
+.kpi b{display:block;font-size:20px;font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:16px;overflow-x:auto}
+.tabs button{background:none;border:0;font:inherit;color:var(--mute);padding:9px 14px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button.on{color:var(--ink);border-color:var(--accent);font-weight:600}
+.page-title{font-size:20px;font-weight:650;margin:0 0 16px}
+.toast{position:fixed;bottom:18px;right:18px;background:var(--ink);color:var(--bg);padding:11px 16px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useMemo,useCallback}=React;
+const api=async(path,opts)=>{
+  const r=await fetch(path,opts&&opts.body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(opts.body)}:undefined);
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(typeof j.detail==="string"?j.detail:JSON.stringify(j.detail||r.statusText));
+  return j;
+};
+const money=n=>n==null?"":Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const Steward=({v,set})=><input placeholder="Your name (steward)" value={v} onChange={e=>set(e.target.value)} aria-label="Steward name"/>;
+
+function Customers({toast,steward,setSteward}){
+  const [q,setQ]=useState("");const [list,setList]=useState([]);const [sel,setSel]=useState(null);const [d,setD]=useState(null);const [page,setPage]=useState(0);const N=50;
+  const search=useCallback(()=>api(`/customers?limit=${N}&offset=${page*N}&q=`+encodeURIComponent(q)).then(setList).catch(e=>toast(e.message)),[q,page]);
+  useEffect(()=>{const t=setTimeout(search,250);return()=>clearTimeout(t)},[search]);
+  const open=id=>{setSel(id);api("/customers/"+id).then(setD).catch(e=>toast(e.message))};
+  return <div className="grid">
+    <div className="panel">
+      <input style={{width:"100%",marginBottom:10}} placeholder="Search name, email, phone, ID…" value={q} onChange={e=>{setQ(e.target.value);setPage(0)}}/>
+      <div className="mute" style={{marginBottom:6}}><div className="row"><button className="btn" disabled={page===0} onClick={()=>setPage(page-1)}>Previous</button>
+        <button className="btn" disabled={list.length<N} onClick={()=>setPage(page+1)}>Next</button>
+        <span>Rows {list.length?page*N+1:0} to {page*N+list.length}</span></div></div>
+      <div className="scroll" style={{maxHeight:"70vh",overflowY:"auto"}}><table>
+        <thead><tr><th>ID</th><th>Name</th><th className="num">Txns</th></tr></thead>
+        <tbody>{list.map(c=><tr key={c.golden_id} className={"click "+(sel===c.golden_id?"sel":"")} onClick={()=>open(c.golden_id)}>
+          <td>{c.golden_id}</td><td>{c.name}</td><td className="num">{c.txn_count}</td></tr>)}</tbody></table></div>
+    </div>
+    {d?<Detail d={d} reload={()=>open(sel)} toast={toast} steward={steward} setSteward={setSteward}/>:<div className="panel mute">Select a customer to see their sources, lineage and transactions.</div>}
+  </div>;
+}
+
+function Detail({d,reload,toast,steward,setSteward}){
+  const g=d.golden,s=d.summary;
+  const [tab,setTab]=useState("overview");
+  const [f,setF]=useState("name");const [v,setV]=useState("");const [why,setWhy]=useState("");
+  const save=async()=>{
+    try{await api(`/customers/${g.golden_id}/override`,{body:{field:f,new_value:v,steward,reason:why}});toast("Saved override");setV("");setWhy("");reload()}
+    catch(e){toast(e.message)}
+  };
+  const editable=Object.keys(g).filter(k=>k!=="golden_id");
+  const lineage=d.lineage||[],matches=d.matches||[];
+  const TABS=[["overview","Overview"],["sources","Sources ("+d.source_records.length+")"],["matches","Matching ("+matches.length+")"],["txns","Transactions ("+d.transactions.length+")"],["edit","Correct"]];
+  const initials=(g.name||"?").split(" ").filter(Boolean).map(w=>w[0]).slice(0,2).join("");
+  return <div>
+    <div className="card head"><div className="avatar">{initials}</div>
+      <div style={{flex:1}}><div className="title">{g.name}</div>
+        <div className="mute">{g.golden_id}</div>
+        <div style={{marginTop:6}}>{g.in_core?<span className="tag">Core</span>:null}{g.in_card?<span className="tag">Card</span>:null}{g.in_loan?<span className="tag">Loan</span>:null}</div></div></div>
+    <div className="kpis">
+      <div className="kpi"><span className="mute">Quality score</span><b>{g.quality_score}</b></div>
+      <div className="kpi"><span className="mute">Source records</span><b>{d.source_records.length}</b></div>
+      <div className="kpi"><span className="mute">Transactions</span><b>{s?s.txn_count:0}</b></div>
+      <div className="kpi"><span className="mute">Net flow</span><b className={s&&s.net_flow<0?"neg":"pos"}>{s?money(s.net_flow):"0.00"}</b></div>
+    </div>
+    <div className="tabs">{TABS.map(([k,l])=><button key={k} className={tab===k?"on":""} onClick={()=>setTab(k)}>{l}</button>)}</div>
+    {tab==="overview"&&<div className="card"><h2>Golden record</h2><div className="scroll"><table>
+      <thead><tr><th>Field</th><th>Value</th><th>Taken from</th></tr></thead>
+      <tbody>{["name","email","phone","dob","address","credit_limit","loan_amount"].filter(k=>g[k]!=null&&g[k]!=="").map(k=>{const l=lineage.find(x=>x.field===k);
+        return <tr key={k}><td className="mute">{k}</td><td style={{whiteSpace:"normal"}}>{g[k]}</td><td className="mute">{l?l.record_uid:""}</td></tr>})}</tbody></table></div>
+      {s&&<div className="mute" style={{marginTop:10}}>Activity from {s.first_txn} to {s.last_txn}, across {s.systems_with_txns} system(s).</div>}</div>}
+    {tab==="sources"&&<div className="card"><h2>Source records</h2><div className="scroll"><table>
+      <thead><tr><th>System</th><th>Source ID</th><th>Raw name</th><th>Raw email</th><th>Raw address</th></tr></thead>
+      <tbody>{d.source_records.map(r=><tr key={r.record_uid}><td>{r.source_system}</td><td>{r.source_id}</td><td>{r.raw_name}</td><td>{r.raw_email}</td><td>{r.raw_address}</td></tr>)}</tbody></table></div></div>}
+    {tab==="matches"&&<div className="card"><h2>How records were matched</h2>
+      {matches.length===0?<div className="mute">No exact or fuzzy candidate pairs involve this customer's source records.</div>:
+      <div className="scroll"><table><thead><tr><th>Method</th><th>This record</th><th>Matched with</th><th>Name</th><th>Evidence</th><th>Result</th></tr></thead>
+      <tbody>{matches.map((m,i)=><tr key={i}><td><span className={"tag "+(m.method==="exact"?"ok":"warn")}>{m.method}</span></td><td>{m.this_record}</td><td>{m.matched_with}</td><td>{m.matched_name}</td><td>{m.detail}</td>
+        <td className={m.joined?"pos":"mute"}>{m.joined?"Joined":"Not joined ("+(m.other_golden_id||"?")+")"}</td></tr>)}</tbody></table></div>}</div>}
+    {tab==="txns"&&<div className="card"><h2>Transactions</h2><div className="scroll" style={{maxHeight:"60vh"}}><table>
+      <thead><tr><th>Date</th><th>Source</th><th>Account</th><th>Type</th><th className="num">Amount</th></tr></thead>
+      <tbody>{d.transactions.map(t=><tr key={t.txn_id}><td>{t.txn_date}</td><td>{t.source_system}</td><td>{t.account_id}</td><td>{t.txn_type}</td>
+        <td className={"num "+(t.txn_type==="Credit"?"pos":"neg")}>{money(t.amount)}</td></tr>)}</tbody></table></div></div>}
+    {tab==="edit"&&<div className="card"><h2>Correct a field</h2>
+      <div className="row"><select value={f} onChange={e=>setF(e.target.value)}>{editable.map(k=><option key={k}>{k}</option>)}</select>
+        <input placeholder="New value" value={v} onChange={e=>setV(e.target.value)}/>
+        <input placeholder="Reason" value={why} onChange={e=>setWhy(e.target.value)}/>
+        <Steward v={steward} set={setSteward}/>
+        <button className="btn ok" disabled={!steward||!v} onClick={save}>Save correction</button></div>
+      {d.audit_log.length>0&&<div className="mute" style={{marginTop:10}}>{d.audit_log.length} earlier change(s) on this record. See the Audit log tab.</div>}</div>}
+  </div>;
+}
+
+function Reviews({toast,steward,setSteward}){
+  const [pairs,setPairs]=useState([]);const [busy,setBusy]=useState(false);const [note,setNote]=useState({});
+  const load=()=>api("/reviews").then(setPairs).catch(e=>toast(e.message));
+  useEffect(()=>{load()},[]);
+  const groups=useMemo(()=>{const m={};
+    pairs.forEach(p=>{const k=[p.golden_id_1,p.golden_id_2].sort().join("|");(m[k]=m[k]||[]).push(p)});
+    return Object.entries(m).map(([k,ps])=>({k,ps}))},[pairs]);
+  const decide=async(grp,decision)=>{
+    if(!steward){toast("Enter your steward name first");return}
+    if(decision==="approve"&&!confirm("Approve merge? This edits four tables and cannot be undone from the API."))return;
+    setBusy(true);
+    try{ // first pair performs the merge; siblings are then recorded against the merged record
+      for(const p of grp.ps)await api("/reviews/decide",{body:{record_uid_1:p.record_uid_1,record_uid_2:p.record_uid_2,decision,steward,reason:note[grp.k]||""}});
+      toast(decision==="approve"?"Merged":"Rejected");await load();
+    }catch(e){toast(e.message);await load()}
+    setBusy(false);
+  };
+  return <div>
+    <div className="row" style={{marginBottom:12}}><Steward v={steward} set={setSteward}/>
+      <span className="mute">{pairs.length} pending pairs = {groups.length} merge decisions. Every pair is flagged only by a shared email, so check names and addresses.</span></div>
+    {groups.length===0&&<div className="panel mute">No pending reviews.</div>}
+    {groups.map(grp=>{const p=grp.ps[0];const recs={};
+      grp.ps.forEach(x=>{recs[x.record_uid_1]={id:x.record_uid_1,g:x.golden_id_1,n:x.name_1,a:x.address_1};recs[x.record_uid_2]={id:x.record_uid_2,g:x.golden_id_2,n:x.name_2,a:x.address_2}});
+      const byG={};Object.values(recs).forEach(r=>(byG[r.g]=byG[r.g]||[]).push(r));
+      return <div className="panel" key={grp.k}>
+        <div className="row" style={{marginBottom:8}}>
+          <strong>{Object.keys(byG).join(" + ")}</strong>
+          <span className={"tag "+(p.name_verdict==="match"?"ok":"warn")}>name: {p.name_verdict}</span><span className={"tag "+(p.address_verdict==="different"?"bad":"ok")}>address: {p.address_verdict}</span>
+          <span className="tag">street score {p.street_score}</span><span className="tag">evidence: {p.exact_evidence}</span>
+          {grp.ps.length>1&&<span className="tag">{grp.ps.length} source pairs</span>}
+        </div>
+        <div className="pair">{Object.entries(byG).map(([gid,rs])=><div key={gid}>
+          <div className="mute" style={{marginBottom:4}}>{gid}</div>
+          {rs.map(r=><div className="rec" key={r.id}><div><strong>{r.n}</strong></div><div>{r.a}</div><div className="mute">{r.id}</div></div>)}</div>)}</div>
+        <div className="row" style={{marginTop:8}}>
+          <input style={{flex:1,minWidth:200}} placeholder="Reason (optional)" value={note[grp.k]||""} onChange={e=>setNote({...note,[grp.k]:e.target.value})}/>
+          <button className="btn bad" disabled={busy} onClick={()=>decide(grp,"reject")}>Reject (keep separate)</button>
+          <button className="btn ok" disabled={busy} onClick={()=>decide(grp,"approve")}>Approve merge</button></div>
+      </div>})}
+  </div>;
+}
+
+function Audit({toast}){
+  const [a,setA]=useState([]);
+  useEffect(()=>{api("/audit?limit=200").then(setA).catch(e=>toast(e.message))},[]);
+  return <div className="panel"><h2>Audit log</h2>{a.length===0?<div className="mute">No steward changes yet.</div>:
+    <div className="scroll"><table><thead><tr><th>When</th><th>Record</th><th>Field</th><th>Old</th><th>New</th><th>Steward</th><th>Reason</th></tr></thead>
+    <tbody>{a.map(r=><tr key={r.id}><td>{r.changed_at.slice(0,19).replace("T"," ")}</td><td>{r.golden_id}</td><td>{r.field}</td><td>{r.old_value}</td><td>{r.new_value}</td><td>{r.steward}</td><td>{r.reason}</td></tr>)}</tbody></table></div>}</div>;
+}
+
+function Stat({label,value,note}){return <div className="panel" style={{marginBottom:0}}><div className="mute">{label}</div><div style={{fontSize:24,fontWeight:650}}>{value}</div><div className="mute">{note}</div></div>}
+function Bars({rows}){const mx=Math.max(1,...rows.map(r=>r.n));
+  return rows.map(r=><div className="row" style={{flexWrap:"nowrap",marginBottom:5}} key={r.label}><span style={{width:90}}>{r.label}</span>
+    <div style={{flex:1,background:"var(--bg)",height:14,borderRadius:3}}><div style={{width:(r.n/mx*100)+"%",background:"var(--accent)",height:14,borderRadius:3}}/></div>
+    <span className="num" style={{width:56}}>{r.n}</span></div>)}
+function Summary({toast}){
+  const [s,setS]=useState(null);
+  useEffect(()=>{api("/summary").then(setS).catch(e=>toast(e.message))},[]);
+  if(!s)return <div className="panel mute">Loading…</div>;
+  const sys={SourceA:"Core",SourceB:"Card",SourceC:"Loan"};
+  return <div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:12,marginBottom:16}}>
+      <Stat label="Golden records" value={s.golden_records} note={`from ${s.source_records} source records`}/>
+      <Stat label="In 2+ systems" value={s.multi_system} note="customers seen in more than one system"/>
+      <Stat label="Pending reviews" value={s.pending_pairs} note={`${s.pending_groups} merge decisions, ${s.decided_pairs} pairs decided`}/>
+      <Stat label="Transactions" value={s.transactions} note={`${s.steward_changes} steward changes logged`}/>
+    </div>
+    <div className="grid" style={{gridTemplateColumns:"1fr 1fr"}}>
+      <div className="panel"><h2>Source records by system</h2><Bars rows={s.by_system.map(r=>({label:sys[r.source_system]||r.source_system,n:r.n}))}/></div>
+      <div className="panel"><h2>Golden records by quality score</h2><Bars rows={s.quality.map(r=>({label:r.bucket==null?"none":r.bucket+"-"+(r.bucket+9),n:r.n}))}/></div>
+    </div>
+  </div>;
+}
+
+function App(){
+  const [tab,setTab]=useState("summary");const [msg,setMsg]=useState("");const [steward,setSteward]=useState("");
+  const toast=m=>{setMsg(m);setTimeout(()=>setMsg(""),4000)};
+  const T=[["summary","Summary"],["customers","Customers"],["reviews","Review queue"],["audit","Audit log"]];
+  return <>
+    <div className="app">
+      <aside><h1>Customer 360</h1>{T.map(([k,l])=><button key={k} className={tab===k?"on":""} onClick={()=>setTab(k)}>{l}</button>)}</aside>
+      <main>
+        {tab==="summary"&&<Summary toast={toast}/>}
+        {tab==="customers"&&<Customers toast={toast} steward={steward} setSteward={setSteward}/>}
+        {tab==="reviews"&&<Reviews toast={toast} steward={steward} setSteward={setSteward}/>}
+        {tab==="audit"&&<Audit toast={toast}/>}
+      </main>
+    </div>
+    {msg&&<div className="toast" role="status">{msg}</div>}
+  </>;
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
