@@ -25,6 +25,7 @@ input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);ou
 button.btn{font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;border-radius:6px;cursor:pointer}
 button.btn:hover:not(:disabled){border-color:var(--mute)}
 button.btn.ok{background:var(--accent);border-color:var(--accent);color:#fff}
+button.btn.on{background:var(--soft);border-color:var(--accent);color:var(--accent);font-weight:600}
 button.btn.bad{color:var(--bad);border-color:var(--bad)}
 button.btn:disabled{opacity:.45;cursor:default}
 .grid{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:20px;align-items:start}
@@ -72,20 +73,21 @@ const money=n=>n==null?"":Number(n).toLocaleString(undefined,{minimumFractionDig
 const Steward=({v,set})=><input placeholder="Your name (steward)" value={v} onChange={e=>set(e.target.value)} aria-label="Steward name"/>;
 
 function Customers({toast,steward,setSteward}){
-  const [q,setQ]=useState("");const [list,setList]=useState([]);const [sel,setSel]=useState(null);const [d,setD]=useState(null);const [page,setPage]=useState(0);const N=50;
-  const search=useCallback(()=>api(`/customers?limit=${N}&offset=${page*N}&q=`+encodeURIComponent(q)).then(setList).catch(e=>toast(e.message)),[q,page]);
+  const [q,setQ]=useState("");const [list,setList]=useState([]);const [sel,setSel]=useState(null);const [d,setD]=useState(null);const [page,setPage]=useState(0);const [low,setLow]=useState(false);const N=50;
+  const search=useCallback(()=>api(`/customers?limit=${N}&offset=${page*N}${low?'&quality_below=100':''}&q=`+encodeURIComponent(q)).then(setList).catch(e=>toast(e.message)),[q,page,low]);
   useEffect(()=>{const t=setTimeout(search,250);return()=>clearTimeout(t)},[search]);
   const open=id=>{setSel(id);api("/customers/"+id).then(setD).catch(e=>toast(e.message))};
   return <div className="grid">
     <div className="panel">
       <input style={{width:"100%",marginBottom:10}} placeholder="Search name, email, phone, ID…" value={q} onChange={e=>{setQ(e.target.value);setPage(0)}}/>
-      <div className="mute" style={{marginBottom:6}}><div className="row"><button className="btn" disabled={page===0} onClick={()=>setPage(page-1)}>Previous</button>
+      <div className="mute" style={{marginBottom:6}}><label className="row" style={{marginBottom:8}}><input type="checkbox" checked={low} onChange={e=>{setLow(e.target.checked);setPage(0)}}/> Only records with quality below 100</label>
+      <div className="row"><button className="btn" disabled={page===0} onClick={()=>setPage(page-1)}>Previous</button>
         <button className="btn" disabled={list.length<N} onClick={()=>setPage(page+1)}>Next</button>
         <span>Rows {list.length?page*N+1:0} to {page*N+list.length}</span></div></div>
       <div className="scroll" style={{maxHeight:"70vh",overflowY:"auto"}}><table>
-        <thead><tr><th>ID</th><th>Name</th><th className="num">Txns</th></tr></thead>
+        <thead><tr><th>ID</th><th>Name</th><th className="num">Score</th><th className="num">Txns</th></tr></thead>
         <tbody>{list.map(c=><tr key={c.golden_id} className={"click "+(sel===c.golden_id?"sel":"")} onClick={()=>open(c.golden_id)}>
-          <td>{c.golden_id}</td><td>{c.name}</td><td className="num">{c.txn_count}</td></tr>)}</tbody></table></div>
+          <td>{c.golden_id}</td><td>{c.name}</td><td className="num">{c.quality_score}</td><td className="num">{c.txn_count}</td></tr>)}</tbody></table></div>
     </div>
     {d?<Detail d={d} reload={()=>open(sel)} toast={toast} steward={steward} setSteward={setSteward}/>:<div className="panel mute">Select a customer to see their sources, lineage and transactions.</div>}
   </div>;
@@ -93,7 +95,7 @@ function Customers({toast,steward,setSteward}){
 
 function Detail({d,reload,toast,steward,setSteward}){
   const g=d.golden,s=d.summary;
-  const [tab,setTab]=useState("overview");
+  const [tab,setTab]=useState("overview");const [sys,setSys]=useState("all");
   const [f,setF]=useState("name");const [v,setV]=useState("");const [why,setWhy]=useState("");
   const save=async()=>{
     try{await api(`/customers/${g.golden_id}/override`,{body:{field:f,new_value:v,steward,reason:why}});toast("Saved override");setV("");setWhy("");reload()}
@@ -101,6 +103,11 @@ function Detail({d,reload,toast,steward,setSteward}){
   };
   const editable=Object.keys(g).filter(k=>k!=="golden_id");
   const lineage=d.lineage||[],matches=d.matches||[];
+  const SYS=[["all","All"],["SourceA","Core"],["SourceB","Card"],["SourceC","Loan"]];
+  const tx=d.transactions.filter(t=>sys==="all"||t.source_system===sys);
+  const cnt=k=>k==="all"?d.transactions.length:d.transactions.filter(t=>t.source_system===k).length;
+  const cr=tx.filter(t=>t.txn_type==="Credit").reduce((a,t)=>a+t.amount,0);
+  const deb=tx.filter(t=>t.txn_type==="Debit").reduce((a,t)=>a+t.amount,0);
   const TABS=[["overview","Overview"],["sources","Sources ("+d.source_records.length+")"],["matches","Matching ("+matches.length+")"],["txns","Transactions ("+d.transactions.length+")"],["edit","Correct"]];
   const initials=(g.name||"?").split(" ").filter(Boolean).map(w=>w[0]).slice(0,2).join("");
   return <div>
@@ -128,10 +135,14 @@ function Detail({d,reload,toast,steward,setSteward}){
       <div className="scroll"><table><thead><tr><th>Method</th><th>This record</th><th>Matched with</th><th>Name</th><th>Evidence</th><th>Result</th></tr></thead>
       <tbody>{matches.map((m,i)=><tr key={i}><td><span className={"tag "+(m.method==="exact"?"ok":"warn")}>{m.method}</span></td><td>{m.this_record}</td><td>{m.matched_with}</td><td>{m.matched_name}</td><td>{m.detail}</td>
         <td className={m.joined?"pos":"mute"}>{m.joined?"Joined":"Not joined ("+(m.other_golden_id||"?")+")"}</td></tr>)}</tbody></table></div>}</div>}
-    {tab==="txns"&&<div className="card"><h2>Transactions</h2><div className="scroll" style={{maxHeight:"60vh"}}><table>
+    {tab==="txns"&&<div className="card"><h2>Transactions</h2>
+      <div className="row" style={{marginBottom:12}}>{SYS.map(([k,l])=><button key={k} className={"btn "+(sys===k?"on":"")} onClick={()=>setSys(k)}>{l} ({cnt(k)})</button>)}</div>
+      <div className="mute" style={{marginBottom:10}}>Credits {money(cr)}, debits {money(deb)}, net <span className={cr-deb<0?"neg":"pos"}>{money(cr-deb)}</span></div>
+      {tx.length===0?<div className="mute">No transactions for this customer in that system.</div>:
+      <div className="scroll" style={{maxHeight:"55vh"}}><table>
       <thead><tr><th>Date</th><th>Source</th><th>Account</th><th>Type</th><th className="num">Amount</th></tr></thead>
-      <tbody>{d.transactions.map(t=><tr key={t.txn_id}><td>{t.txn_date}</td><td>{t.source_system}</td><td>{t.account_id}</td><td>{t.txn_type}</td>
-        <td className={"num "+(t.txn_type==="Credit"?"pos":"neg")}>{money(t.amount)}</td></tr>)}</tbody></table></div></div>}
+      <tbody>{tx.map(t=><tr key={t.txn_id}><td>{t.txn_date}</td><td>{t.source_system}</td><td>{t.account_id}</td><td>{t.txn_type}</td>
+        <td className={"num "+(t.txn_type==="Credit"?"pos":"neg")}>{money(t.amount)}</td></tr>)}</tbody></table></div>}</div>}
     {tab==="edit"&&<div className="card"><h2>Correct a field</h2>
       <div className="row"><select value={f} onChange={e=>setF(e.target.value)}>{editable.map(k=><option key={k}>{k}</option>)}</select>
         <input placeholder="New value" value={v} onChange={e=>setV(e.target.value)}/>
@@ -216,10 +227,65 @@ function Summary({toast}){
   </div>;
 }
 
+function Import({toast,steward,setSteward}){
+  const [file,setFile]=useState(null);const [pv,setPv]=useState(null);const [map,setMap]=useState({});
+  const [sel,setSel]=useState("__new__");const [newSys,setNewSys]=useState("");const [why,setWhy]=useState("");
+  const [busy,setBusy]=useState(false);const [res,setRes]=useState(null);const [log,setLog]=useState([]);
+  const loadLog=()=>api("/import/log").then(setLog).catch(()=>{});
+  useEffect(()=>{loadLog()},[]);
+  const pick=async e=>{
+    const f=e.target.files[0];if(!f)return;setRes(null);
+    const content=await f.text();setFile({name:f.name,content});
+    try{const p=await api("/import/preview",{body:{filename:f.name,content}});setPv(p);setMap(p.mapping)}
+    catch(err){toast(err.message);setPv(null)}
+  };
+  const system=sel==="__new__"?newSys.trim():sel;
+  const ok=pv&&map.id&&system&&steward&&!busy;
+  const run=async()=>{
+    if(!confirm("Import "+pv.rows+" rows into "+system+"? A backup of the database is made first."))return;
+    setBusy(true);
+    try{const r=await api("/import/commit",{body:{filename:file.name,content:file.content,system,mapping:map,steward,reason:why}});
+      setRes(r);setPv(null);setFile(null);loadLog()}
+    catch(err){toast(err.message)}
+    setBusy(false);
+  };
+  const FIELDS=[["id","Source ID (required)"],["name","Name"],["email","Email"],["phone","Phone"],["dob","Date of birth"],["address","Address"],["credit_limit","Credit limit"],["loan_amount","Loan amount"]];
+  return <div>
+    <div className="panel"><h2>Import a CSV or JSON file</h2>
+      <p className="mute" style={{marginTop:0}}>The file is cleaned, appended to source_info, matched against existing records and merged using the same rules as the original pipeline. Uncertain matches go to the Review queue.</p>
+      <input type="file" accept=".csv,.json" onChange={pick}/></div>
+    {pv&&<>
+      <div className="panel"><h2>Preview ({pv.rows} rows)</h2><div className="scroll"><table>
+        <thead><tr>{pv.columns.map(c=><th key={c}>{c}</th>)}</tr></thead>
+        <tbody>{pv.sample.map((r,i)=><tr key={i}>{pv.columns.map(c=><td key={c}>{r[c]==null?"":String(r[c])}</td>)}</tr>)}</tbody></table></div></div>
+      <div className="panel"><h2>Map columns</h2>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12}}>
+          {FIELDS.map(([k,l])=><label key={k}><div className="mute">{l}</div>
+            <select style={{width:"100%"}} value={map[k]||""} onChange={e=>setMap({...map,[k]:e.target.value})}>
+              <option value="">(not in file)</option>{pv.columns.map(c=><option key={c}>{c}</option>)}</select></label>)}</div>
+        <h2 style={{marginTop:18}}>Source system</h2>
+        <div className="row"><select value={sel} onChange={e=>setSel(e.target.value)}>
+            {pv.systems.map(x=><option key={x} value={x}>Add to {x}</option>)}<option value="__new__">New system</option></select>
+          {sel==="__new__"&&<input placeholder="Name, e.g. SourceD" value={newSys} onChange={e=>setNewSys(e.target.value)}/>}
+          <input placeholder="Reason (optional)" value={why} onChange={e=>setWhy(e.target.value)}/>
+          <Steward v={steward} set={setSteward}/>
+          <button className="btn ok" disabled={!ok} onClick={run}>{busy?"Importing, please wait…":"Import"}</button></div></div></>}
+    {res&&<div className="panel"><h2>Import finished</h2><div className="kv" style={{display:"grid",gridTemplateColumns:"220px 1fr",gap:4}}>
+      <span className="mute">Rows imported</span><span>{res.rows_imported} into {res.system} ({res.blank_id_skipped} skipped, no ID)</span>
+      <span className="mute">New golden records</span><span>{res.new_golden_records}</span>
+      <span className="mute">Joined to existing</span><span>{res.records_joined_to_existing} records</span>
+      <span className="mute">Added to Review queue</span><span>{res.review_pairs_added} pairs</span>
+      <span className="mute">Backup</span><span>{res.backup}</span></div></div>}
+    <div className="panel"><h2>Earlier imports</h2>{log.length===0?<div className="mute">None yet.</div>:<div className="scroll"><table>
+      <thead><tr><th>When</th><th>File</th><th>System</th><th className="num">Rows</th><th className="num">New golden</th><th className="num">Joined</th><th className="num">Review</th><th>Steward</th></tr></thead>
+      <tbody>{log.map(r=><tr key={r.id}><td>{r.imported_at.slice(0,19).replace("T"," ")}</td><td>{r.filename}</td><td>{r.source_system}</td><td className="num">{r.rows_imported}</td><td className="num">{r.new_golden}</td><td className="num">{r.joined_existing}</td><td className="num">{r.review_pairs}</td><td>{r.steward}</td></tr>)}</tbody></table></div>}</div>
+  </div>;
+}
+
 function App(){
   const [tab,setTab]=useState("summary");const [msg,setMsg]=useState("");const [steward,setSteward]=useState("");
   const toast=m=>{setMsg(m);setTimeout(()=>setMsg(""),4000)};
-  const T=[["summary","Summary"],["customers","Customers"],["reviews","Review queue"],["audit","Audit log"]];
+  const T=[["summary","Summary"],["customers","Customers"],["reviews","Review queue"],["audit","Audit log"],["import","Import"]];
   return <>
     <div className="app">
       <aside><h1>Customer 360</h1>{T.map(([k,l])=><button key={k} className={tab===k?"on":""} onClick={()=>setTab(k)}>{l}</button>)}</aside>
@@ -228,6 +294,7 @@ function App(){
         {tab==="customers"&&<Customers toast={toast} steward={steward} setSteward={setSteward}/>}
         {tab==="reviews"&&<Reviews toast={toast} steward={steward} setSteward={setSteward}/>}
         {tab==="audit"&&<Audit toast={toast}/>}
+        {tab==="import"&&<Import toast={toast} steward={steward} setSteward={setSteward}/>}
       </main>
     </div>
     {msg&&<div className="toast" role="status">{msg}</div>}
